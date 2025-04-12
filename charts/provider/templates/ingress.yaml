@@ -1,32 +1,26 @@
 {{- if .Values.ingressGrpc.enabled }}
+{{- range $chain := $.Values.chains }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "provider.fullname" . }}
+  name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
   labels:
-    {{- include "provider.labels" . | nindent 4 }}
-  {{- with .Values.ingressGrpc.annotations }}
+    {{- include "provider.labels" $ | nindent 4 }}
+  {{- with $.Values.ingressGrpc.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- with .Values.ingressGrpc.className }}
+  {{- with $.Values.ingressGrpc.className }}
   ingressClassName: {{ . }}
   {{- end }}
-  {{- if .Values.ingressGrpc.tls }}
+  {{- if $.Values.ingressGrpc.tls }}
   tls:
     - hosts:
-      {{- range $chain := $.Values.chains }}
         - "{{ $chain.name | lower }}.{{ include "provider.domain" $ }}"
-      {{- end }}
-      {{- with .Values.ingressGrpc.tlsSecretName }}
-      secretName: {{ . }}
-      {{- else }}
-      secretName: provider-grpc-tls
-      {{- end }}
+      secretName: {{ default (printf "%s-%s-tls" (include "provider.fullname" $) ($chain.name | lower)) $chain.tlsSecretName }}
   {{- end }}
   rules:
-    {{- range $chain := $.Values.chains }}
     - host: "{{ $chain.name | lower }}.{{ include "provider.domain" $ }}"
       http:
         paths:
@@ -37,5 +31,5 @@ spec:
                 name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
                 port:
                   name: grpc
-    {{- end }}
+{{- end }}
 {{- end }}

@@ -4,13 +4,13 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name:  {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
+  name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
   labels:
     {{- include "provider.labels" $ | nindent 4 }}
     app.lavanet.io/chain: {{ $chain.name | lower }}
 spec:
   replicas: {{ $.Values.replicaCount }}
-  serviceName: {{ $chain.name | lower }}-{{ include "provider.fullname" $ }}
+  serviceName: {{ include "provider.serviceAccountName" $ }}-{{ $chain.name | lower }}
   updateStrategy:
     type: {{ $.Values.statefulSetUpdate.updateStrategy }}
   podManagementPolicy: "Parallel"
@@ -22,7 +22,7 @@ spec:
     metadata:
       annotations:
         {{- with $.Values.podAnnotations }}
-        {{- toYaml $ | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if not $chain.existingConfigSecret }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") $ | sha256sum }}
@@ -33,11 +33,13 @@ spec:
     spec:
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- toYaml $ | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "provider.serviceAccountName" $ }}
+
+      serviceAccountName: {{ include "provider.serviceAccountName" $ }}-{{ $chain.name | lower }}
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+
       initContainers:
         - name: import-keys
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
@@ -49,11 +51,7 @@ spec:
                 echo "Key {{ $.Values.wallet }} has already been exported, exiting..."
                 exit 0
               fi
-
-              echo $KEY_PASSWORD | lavap keys \
-              import {{ $.Values.wallet }} /tmp/keyfile/{{ $.Values.key.secretKey }} \
-              --keyring-backend {{ $.Values.keyringBackend }}
-
+              echo $KEY_PASSWORD | lavap keys import {{ $.Values.wallet }} /tmp/keyfile/{{ $.Values.key.secretKey }} --keyring-backend {{ $.Values.keyringBackend }}
               touch /lava/.key-{{ $.Values.wallet }}.imported
           env:
             - name: KEY_PASSWORD
@@ -62,18 +60,19 @@ spec:
                   name: {{ $.Values.key.passwordSecretName }}
                   key: {{ $.Values.key.passwordSecretKey }}
           volumeMounts:
-            - name: "private-key-volume"
+            - name: private-key-volume
               mountPath: /tmp/keyfile/{{ $.Values.key.secretKey }}
               subPath: {{ $.Values.key.secretKey }}
               readOnly: true
-            - mountPath: "/lava"
+            - mountPath: /lava
               name: data
+
       containers:
         - name: {{ $.Chart.Name }}
-          securityContext:
-            {{- toYaml $.Values.securityContext | nindent 12 }}
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $.Values.securityContext | nindent 12 }}
           args:
             - "rpcprovider"
             {{- if $chain.existingConfigSecret }}
@@ -101,7 +100,7 @@ spec:
             - {{ $.Values.log.level }}
             - --log_format
             - {{ $.Values.log.format }}
-            {{- range $i, $val := $.Values.additionalArgs }}
+            {{- range $val := $.Values.additionalArgs }}
             - {{ $val | quote }}
             {{- end }}
           env:
@@ -113,11 +112,11 @@ spec:
             - name: grpc
               containerPort: {{ $.Values.service.port }}
               protocol: TCP
-          {{- if $.Values.metrics.enabled }}
+            {{- if $.Values.metrics.enabled }}
             - name: metrics
               containerPort: {{ $.Values.metrics.port }}
               protocol: TCP
-          {{- end }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /lava/health
@@ -139,46 +138,41 @@ spec:
             successThreshold: {{ $.Values.readinessProbe.successThreshold }}
             failureThreshold: {{ $.Values.readinessProbe.failureThreshold }}
           volumeMounts:
-            - mountPath: "/lava"
+            - mountPath: /lava
               name: data
-            - mountPath: "/lava/config/config.yml"
+            - mountPath: /lava/config/config.yml
               subPath: config.yml
               name: {{ $chain.name | lower }}-config
               readOnly: true
           resources:
-            {{- toYaml $.Values.resources | nindent 12 }}
+            {{- toYaml (default $.Values.resources $chain.resources) | nindent 12 }}
+
       volumes:
         - name: {{ $chain.name | lower }}-config
           secret:
-            {{- if $chain.existingConfigSecret }}
-            secretName: {{ $chain.existingConfigSecret }}
-            {{- else }}
-            secretName: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
-            {{- end }}
-        - name: "private-key-volume"
+            secretName: {{ default (print (include "provider.fullname" $) "-" ($chain.name | lower)) $chain.existingConfigSecret }}
+        - name: private-key-volume
           secret:
             secretName: {{ $.Values.key.secretName }}
             optional: false
         - name: data
-          {{- if $chain.persistence }}
-          {{- if $chain.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-          {{- end }}
+
       {{- with $.Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml $ | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
+
       {{- with $.Values.affinity }}
       affinity:
-        {{- toYaml $ | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
+
       {{- with $.Values.tolerations }}
       tolerations:
-        {{- toYaml $ | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
+
 {{- end }}
 {{- end }}

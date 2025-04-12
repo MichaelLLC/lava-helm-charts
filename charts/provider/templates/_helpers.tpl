@@ -48,6 +48,8 @@ Selector labels
 {{- define "provider.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "provider.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/moniker: {{ .Values.global.moniker }}
+app.kubernetes.io/network: {{ .Values.global.environment }}
 {{- end }}
 
 {{/*
