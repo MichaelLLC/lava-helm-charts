@@ -1,50 +1,54 @@
-{{- if .Values.certificate.enabled -}}
-{{- if not .Values.ingress.tlsSecretName }}
+{{- if and .Values.certificate.enabled (not .Values.ingressGrpc.tlsSecretName) }}
+{{- $certificate := .Values.certificate }}
+{{- range $chain := .Values.chains }}
+{{- $domainName := printf "%s.%s" (lower $chain.name) (include "provider.domain" $) }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  {{- with .Values.certificate.annotations }}
+  name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}-tls
+  namespace: {{ include "provider.namespace" $ }}
+  labels:
+    {{- include "provider.labels" $ | nindent 4 }}
+  {{- with $certificate.annotations }}
   annotations:
     {{- range $key, $value := . }}
     {{ $key }}: {{ $value | quote }}
     {{- end }}
   {{- end }}
-  name: {{ include "provider.fullname" . }}
-  namespace: {{ include  "provider.namespace" . }}
-  labels:
-    {{- include "provider.labels" $ | nindent 4 }}
 spec:
+  commonName: {{ $domainName }}
+  dnsNames:
+    - {{ $domainName }}
+    {{- range $certificate.additionalHosts }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- with $certificate.duration }}
+  duration: {{ . | quote }}
+  {{- end }}
+  {{- with $certificate.renewBefore }}
+  renewBefore: {{ . | quote }}
+  {{- end }}
+  issuerRef:
+    {{- with $certificate.issuer.group }}
+    group: {{ . | quote }}
+    {{- end }}
+    kind: {{ $certificate.issuer.kind | quote }}
+    name: {{ $certificate.issuer.name | quote }}
+  {{- if $certificate.privateKey.enabled }}
+  {{- with $certificate.privateKey }}
+  privateKey:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  secretName: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}-tls
+  {{- with $certificate.secretTemplateAnnotations }}
   secretTemplate:
-    {{- with .Values.certificate.secretTemplateAnnotations }}
     annotations:
       {{- range $key, $value := . }}
       {{ $key }}: {{ $value | quote }}
       {{- end }}
-    {{- end }}
-  secretName: provider-grpc-tls
-  commonName: {{ .Values.certificate.domain | default (printf "*.%s" .Values.global.domain) | quote }}
-  dnsNames:
-    - {{ .Values.certificate.domain | default (printf "*.%s" .Values.global.domain) | quote }}
-    {{- range .Values.certificate.additionalHosts }}
-    - {{ . | quote }}
-    {{- end }}
-  {{- with .Values.certificate.duration }}
-  duration: {{ . | quote }}
   {{- end }}
-  {{- with .Values.certificate.renewBefore }}
-  renewBefore: {{ . | quote }}
-  {{- end }}
-  issuerRef:
-    {{- with .Values.certificate.issuer.group }}
-    group: {{ . | quote }}
-    {{- end }}
-    kind: {{ .Values.certificate.issuer.kind | quote }}
-    name: {{ .Values.certificate.issuer.name | quote }}
-  {{- with .Values.certificate.privateKey }}
-  privateKey:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- with .Values.certificate.usages }}
+  {{- with $certificate.usages }}
   usages:
     {{- toYaml . | nindent 4 }}
   {{- end }}

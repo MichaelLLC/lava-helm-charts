@@ -1,0 +1,39 @@
+{{- if and .Values.metrics.enabled .Values.metrics.vmServiceScrape.enabled }}
+{{- $vm := .Values.metrics.vmServiceScrape }}
+{{- range $chain := $.Values.chains }}
+
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
+  labels:
+    {{- include "provider.labels" $ | nindent 4 }}
+spec:
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ $vm.interval | default "10s" }}
+      scrapeTimeout: {{ $vm.scrapeTimeout | default "1s" }}
+      scheme: {{ $vm.scheme | default "http" }}
+      {{- with $vm.metricRelabelConfigs }}
+      metricRelabelConfigs:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  jobLabel: app.kubernetes.io/name
+  namespaceSelector:
+    matchNames:
+      - {{ $.Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
+  {{- with $vm.podTargetLabels }}
+  podTargetLabels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $vm.targetLabels }}
+  targetLabels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+{{- end }}
+{{- end }}

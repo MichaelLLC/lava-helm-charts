@@ -1,0 +1,20 @@
+{{- if and (not .Values.ingressGrpc.enabled) (.Values.certificate.enabled) }}
+{{- range $chain := .Values.chains }}
+{{- $domainName := printf "%s.%s" (lower $chain.name) (include "provider.domain" $) }}
+
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
+  namespace: {{ include "provider.namespace" $ }}
+  labels:
+    {{- include "provider.labels" $ | nindent 4 }}
+spec:
+  hosts:
+    - {{ $domainName }}
+  secret:
+    name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}-tls
+    namespace: {{ include "provider.namespace" $ }}
+---
+{{- end }}
+{{- end }}

@@ -1,0 +1,23 @@
+{{- if not .Values.ingressGrpc.enabled }}
+{{- range $chain := .Values.chains }}
+{{- $domainName := printf "%s.%s" (lower $chain.name) (include "provider.domain" $) }}
+
+apiVersion: apisix.apache.org/v2
+kind: ApisixUpstream
+metadata:
+  name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
+  namespace: {{ include "provider.namespace" $ }}
+  labels:
+    {{- include "provider.labels" $ | nindent 4 }}
+spec:
+  discovery:
+    serviceName: {{ include "provider.namespace" $ }}/{{ include "provider.fullname" $ }}-{{ $chain.name | lower }}:grpc
+    type: kubernetes
+  loadbalancer:
+    hashOn: header
+    key: lava-lb-unique-id
+    type: chash
+  scheme: grpc
+---
+{{- end }}
+{{- end }}

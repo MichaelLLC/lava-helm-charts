@@ -21,6 +21,7 @@ imagePullSecrets: []
 nameOverride: ""
 # -- String to fully override `"provider.fullname"`
 fullnameOverride: ""
+namespaceOverride: ""
 
 ## -- Update strategy for StatefulSets
 statefulSetUpdate:
@@ -80,6 +81,61 @@ ingressGrpc:
   # -- Custom Ingress TLS secret
   tlsSecretName:
 
+# ------------------------------------------------------------------------------
+# DNS configuration block (used only when external-dns is deployed)
+# ------------------------------------------------------------------------------
+# This section configures the generation of DNSEndpoint resources for each chain.
+# It is applicable only if the external-dns controller is installed in the cluster.
+# When enabled, ExternalDNS will automatically create and manage DNS records
+# (e.g., A records) for each chain's domain.
+dns:
+  # Enables or disables the generation of DNSEndpoint resources.
+  # Set to true to create DNSEndpoint manifests for each chain.
+  enabled: false
+
+  # Optional custom DNS name to override the default generated domain
+  # (which is usually based on the chain name and global domain).
+  # If not set, the DNS name will default to: <chain-name>.<global.domain>
+  #
+  # Example:
+  # dnsName: "custom.domain.example"
+  dnsName: ""
+
+  # Optional custom labels for the DNSEndpoint resource.
+  # These labels will be applied under spec.endpoints[].labels,
+  # and can be used for ownership, filtering, or other metadata tagging.
+  #
+  # Example:
+  # labels:
+  #   owner: "apisix"
+  #   team: "infra"
+  labels: {}
+
+  # Optional custom DNS provider-specific settings.
+  # Useful for defining weight, routing, or proxy settings per provider.
+  # See https://github.com/kubernetes-sigs/external-dns/blob/master/docs/annotations.md#provider-specific-settings
+  providerSpecific: []
+    # - name: "aws/route53-weight"
+    #   value: "100"
+    # - name: "aws/evaluate-target-health"
+    #   value: "true"
+
+  # Time to live (TTL) for the DNS record in seconds.
+  recordTTL: 60
+
+  # DNS record type. Default is "A" for IPv4 addresses.
+  # Other options include "CNAME", "AAAA", etc.
+  recordType: "A"
+
+  # Optional identifier to distinguish multiple records with the same name and type.
+  # Used mainly with DNS providers like AWS Route53 when routing policies (e.g., weighted, failover) are enabled.
+  # Leave empty if not needed.
+  setIdentifier: ""
+
+  # The target IP address for the A record that will be created by DNSEndpoint.
+  # This is typically the public IP of the APISIX ingress controller or LoadBalancer.
+  targets: []
+
 # TLS certificate configuration via cert-manager
 certificate:
   # -- Deploy a Certificate resource (requires cert-manager)
@@ -108,8 +164,9 @@ certificate:
     name: "selfsigned"
   # Private key of the certificate
   privateKey:
+    enabled: false
     # -- Rotation policy of private key when certificate is re-issued. Either: `Never` or `Always`
-    rotationPolicy: Never
+    rotationPolicy: "Never"
     # -- The private key cryptography standards (PKCS) encoding for private key. Either: `PCKS1` or `PKCS8`
     encoding: PKCS1
     # -- Algorithm used to generate certificate private key. One of: `RSA`, `Ed25519` or `ECDSA`
@@ -203,6 +260,22 @@ metrics:
     additionalLabels: {}
     # -- Prometheus ServiceMonitor annotations
     annotations: {}
+
+  vmServiceScrape:
+    # Enable a victoria metrics service scrape
+    enabled: false
+    # Interval for scraping metrics by vmagent. Default: 10s
+    interval: ""
+    # Timeout for scraping the endpoint. Default: 1s
+    scrapeTimeout: ""
+    # VMServiceScrape scheme. Default: http
+    scheme: ""
+    # List of labels to transfer from Pod to scraped metrics
+    podTargetLabels: []
+    # List of labels to transfer from Service to scraped metrics
+    targetLabels: []
+    # Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
+    metricRelabelConfigs: []
 
 log:
   # -- Provider log level

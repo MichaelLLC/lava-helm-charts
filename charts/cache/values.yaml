@@ -221,6 +221,22 @@ metrics:
     # -- Prometheus ServiceMonitor annotations
     annotations: {}
 
+  vmServiceScrape:
+    # Enable a victoria metrics service scrape
+    enabled: false
+    # Interval for scraping metrics by vmagent. Default: 10s
+    interval: ""
+    # Timeout for scraping the endpoint. Default: 1s
+    scrapeTimeout: ""
+    # VMServiceScrape scheme. Default: http
+    scheme: ""
+    # List of labels to transfer from Pod to scraped metrics
+    podTargetLabels: []
+    # List of labels to transfer from Service to scraped metrics
+    targetLabels: []
+    # Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
+    metricRelabelConfigs: []
+
 log:
   # -- Cache log level
   level: info

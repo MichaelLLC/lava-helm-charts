@@ -1,0 +1,30 @@
+{{- $dns := .Values.dns }}
+{{- if and $dns.enabled (gt (len $dns.targets) 0) }}
+{{- range $chain := .Values.chains }}
+{{- $domainName := printf "%s.%s" (lower $chain.name) (include "provider.domain" $) }}
+
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: {{ $domainName }}
+  namespace: {{ include "provider.namespace" $ }}
+  labels:
+    {{- include "provider.labels" $ | nindent 4 }}
+spec:
+  endpoints:
+    - dnsName: {{ default $domainName $dns.dnsName }}
+      {{- if $dns.labels }}
+      labels: {{- toYaml $dns.labels | nindent 8 }}
+      {{- end }}
+      {{- if $dns.providerSpecific }}
+      providerSpecific: {{- toYaml $dns.providerSpecific | nindent 8 }}
+      {{- end }}
+      recordTTL: {{ default 60 $dns.recordTTL }}
+      recordType: {{ default "A" $dns.recordType | quote }}
+      {{- if $dns.setIdentifier }}
+      setIdentifier: {{ $dns.setIdentifier | quote }}
+      {{- end }}
+      targets: {{- toYaml $dns.targets | nindent 8 }}
+
+{{- end }}
+{{- end }}

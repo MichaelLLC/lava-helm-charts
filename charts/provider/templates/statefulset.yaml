@@ -9,7 +9,7 @@ metadata:
     {{- include "provider.labels" $ | nindent 4 }}
     app.lavanet.io/chain: {{ $chain.name | lower }}
 spec:
-  replicas: {{ $.Values.replicaCount }}
+  replicas: {{ default $.Values.replicaCount $chain.replicaCount }}
   serviceName: {{ include "provider.serviceAccountName" $ }}-{{ $chain.name | lower }}
   updateStrategy:
     type: {{ $.Values.statefulSetUpdate.updateStrategy }}
@@ -97,7 +97,11 @@ spec:
             - {{ $.Values.cache.address }}
             {{- end }}
             - --log_level
-            - {{ $.Values.log.level }}
+            - {{- with $chain.log }}
+              {{ .level | default $.Values.log.level }}
+              {{- else }}
+              {{ $.Values.log.level }}
+              {{- end }}
             - --log_format
             - {{ $.Values.log.format }}
             {{- range $val := $.Values.additionalArgs }}
