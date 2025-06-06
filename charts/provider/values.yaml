@@ -223,6 +223,15 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
+initContainers:
+  resources:
+    limits:
+      cpu: 50m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
 # -- [Node selector]
 nodeSelector: {}
 
