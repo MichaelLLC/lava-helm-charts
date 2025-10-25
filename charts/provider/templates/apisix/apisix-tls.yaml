@@ -1,7 +1,8 @@
 {{- if and (not .Values.ingressGrpc.enabled) (.Values.certificate.enabled) }}
 {{- range $chain := .Values.chains }}
-{{- $domainName := printf "%s.%s" (lower $chain.name) (include "provider.domain" $) }}
+{{- $domainName := printf "%s.%s" (default $chain.name $chain.subdomain | lower) (include "provider.domain" $) }}
 
+---
 apiVersion: apisix.apache.org/v2
 kind: ApisixTls
 metadata:

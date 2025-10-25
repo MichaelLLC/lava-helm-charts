@@ -1,7 +1,9 @@
 {{- if and .Values.certificate.enabled (not .Values.ingressGrpc.tlsSecretName) }}
 {{- $certificate := .Values.certificate }}
 {{- range $chain := .Values.chains }}
-{{- $domainName := printf "%s.%s" (lower $chain.name) (include "provider.domain" $) }}
+{{- $domainName := printf "%s.%s" (default $chain.name $chain.subdomain | lower) (include "provider.domain" $) }}
+
+---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

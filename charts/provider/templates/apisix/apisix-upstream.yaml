@@ -1,7 +1,7 @@
 {{- if not .Values.ingressGrpc.enabled }}
 {{- range $chain := .Values.chains }}
-{{- $domainName := printf "%s.%s" (lower $chain.name) (include "provider.domain" $) }}
 
+---
 apiVersion: apisix.apache.org/v2
 kind: ApisixUpstream
 metadata:

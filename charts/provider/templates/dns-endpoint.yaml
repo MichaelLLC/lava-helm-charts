@@ -1,12 +1,12 @@
 {{- $dns := .Values.dns }}
 {{- if and $dns.enabled (gt (len $dns.targets) 0) }}
 {{- range $chain := .Values.chains }}
-{{- $domainName := printf "%s.%s" (lower $chain.name) (include "provider.domain" $) }}
+{{- $domainName := printf "%s.%s" (default $chain.name $chain.subdomain | lower) (include "provider.domain" $) }}
 
 apiVersion: externaldns.k8s.io/v1alpha1
 kind: DNSEndpoint
 metadata:
-  name: {{ $domainName }}
+  name:  {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
   namespace: {{ include "provider.namespace" $ }}
   labels:
     {{- include "provider.labels" $ | nindent 4 }}
