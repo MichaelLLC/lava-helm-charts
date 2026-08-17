@@ -182,6 +182,22 @@ certificate:
   secretTemplateAnnotations: {}
 
 ## Probes for provider
+startupProbe:
+  # -- Should enable startup probe for slow provider startup
+  enabled: true
+  # -- Schema of the [probe], can be HTTP or HTTPS
+  scheme: HTTPS
+  # -- Minimum consecutive failures for the [probe] to be considered failed
+  failureThreshold: 30
+  # -- Number of seconds after the container has started before [probe] is initiated
+  initialDelaySeconds: 0
+  # -- How often (in seconds) to perform the [probe]
+  periodSeconds: 10
+  # -- Minimum consecutive successes for the [probe] to be considered successful
+  successThreshold: 1
+  # -- Number of seconds after which the [probe] times out
+  timeoutSeconds: 1
+
 readinessProbe:
   # -- Schema of the [probe], can be HTTP or HTTPS
   scheme: HTTPS
@@ -285,6 +301,12 @@ metrics:
     targetLabels: []
     # Prometheus [MetricRelabelConfigs] to apply to samples before ingestion
     metricRelabelConfigs: []
+
+otel:
+  tracing:
+    # -- Enable OpenTelemetry traces export. Disabled by default to avoid the
+    # Lava SDK trying to export traces to a missing localhost collector.
+    enabled: false
 
 log:
   # -- Provider log level

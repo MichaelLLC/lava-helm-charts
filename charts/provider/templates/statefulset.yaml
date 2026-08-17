@@ -116,6 +116,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+            {{- if not $.Values.otel.tracing.enabled }}
+            - name: OTEL_SDK_DISABLED
+              value: "true"
+            - name: OTEL_TRACES_EXPORTER
+              value: "none"
+            {{- end }}
           ports:
             - name: grpc
               containerPort: {{ $.Values.service.port }}
@@ -125,6 +131,18 @@ spec:
               containerPort: {{ $.Values.metrics.port }}
               protocol: TCP
             {{- end }}
+          {{- if $.Values.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /lava/health
+              port: grpc
+              scheme: {{ $.Values.startupProbe.scheme }}
+            initialDelaySeconds: {{ $.Values.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.startupProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.startupProbe.timeoutSeconds }}
+            successThreshold: {{ $.Values.startupProbe.successThreshold }}
+            failureThreshold: {{ $.Values.startupProbe.failureThreshold }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /lava/health
