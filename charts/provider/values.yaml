@@ -354,6 +354,10 @@ additionalArgs: []
 chains:
   # - id: lav1
   #   name: my-lav1
+  #   # Replace __POD_INDEX__ in endpoint URLs with the StatefulSet ordinal
+  #   # before starting lavap. Disabled by default and configured per chain.
+  #   podIndexConfig:
+  #     enabled: false
   #   resources:
   #     requests:
   #       cpu: 100m

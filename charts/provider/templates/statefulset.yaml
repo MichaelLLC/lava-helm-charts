@@ -1,5 +1,9 @@
 {{- range $chain := $.Values.chains }}
 {{- if and $chain.persistence $chain.persistence.enabled }}
+{{- $podIndexConfigEnabled := false }}
+{{- with $chain.podIndexConfig }}
+{{- $podIndexConfigEnabled = .enabled }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -70,6 +74,32 @@ spec:
               readOnly: true
             - mountPath: /lava
               name: data
+      {{- if $podIndexConfigEnabled }}
+        - name: render-provider-config
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              grep -q '__POD_INDEX__' /config-template/config.yml
+              sed "s/__POD_INDEX__/${MY_POD_INDEX}/g" /config-template/config.yml > /runtime-config/config.yml
+              if grep -q '__POD_INDEX__' /runtime-config/config.yml; then
+                echo "Failed to render provider config for pod index ${MY_POD_INDEX}" >&2
+                exit 1
+              fi
+          env:
+            - name: MY_POD_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['apps.kubernetes.io/pod-index']
+          volumeMounts:
+            - mountPath: /config-template
+              name: {{ $chain.name | lower }}-config-template
+              readOnly: true
+            - mountPath: /runtime-config
+              name: {{ $chain.name | lower }}-runtime-config
+      {{- end }}
 
       containers:
         - name: {{ $.Chart.Name }}
@@ -166,17 +196,31 @@ spec:
           volumeMounts:
             - mountPath: /lava
               name: data
+            {{- if $podIndexConfigEnabled }}
+            - mountPath: /lava/config
+              name: {{ $chain.name | lower }}-runtime-config
+              readOnly: true
+            {{- else }}
             - mountPath: /lava/config/config.yml
               subPath: config.yml
               name: {{ $chain.name | lower }}-config
               readOnly: true
+            {{- end }}
           resources:
             {{- toYaml (default $.Values.resources $chain.resources) | nindent 12 }}
 
       volumes:
+        {{- if $podIndexConfigEnabled }}
+        - name: {{ $chain.name | lower }}-config-template
+          secret:
+            secretName: {{ default (print (include "provider.fullname" $) "-" ($chain.name | lower)) $chain.existingConfigSecret }}
+        - name: {{ $chain.name | lower }}-runtime-config
+          emptyDir: {}
+        {{- else }}
         - name: {{ $chain.name | lower }}-config
           secret:
             secretName: {{ default (print (include "provider.fullname" $) "-" ($chain.name | lower)) $chain.existingConfigSecret }}
+        {{- end }}
         - name: private-key-volume
           secret:
             secretName: {{ $.Values.key.secretName }}
