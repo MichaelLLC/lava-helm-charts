@@ -1,0 +1,22 @@
+{{- range $chain := $.Values.chains }}
+{{- if and $.Values.podDisruptionBudget.enabled $chain.persistence $chain.persistence.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "provider.fullname" $ }}-{{ $chain.name | lower }}
+  labels:
+    {{- include "provider.labels" $ | nindent 4 }}
+    app.lavanet.io/chain: {{ $chain.name | lower }}
+spec:
+  {{- if $.Values.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ $.Values.podDisruptionBudget.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ $.Values.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "provider.selectorLabels" $ | nindent 6 }}
+      app.lavanet.io/chain: {{ $chain.name | lower }}
+{{- end }}
+{{- end }}

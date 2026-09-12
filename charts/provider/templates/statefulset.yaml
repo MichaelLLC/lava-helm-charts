@@ -15,6 +15,7 @@ metadata:
 spec:
   replicas: {{ default $.Values.replicaCount $chain.replicaCount }}
   serviceName: {{ include "provider.serviceAccountName" $ }}-{{ $chain.name | lower }}
+  minReadySeconds: {{ $.Values.statefulSetUpdate.minReadySeconds }}
   updateStrategy:
     type: {{ $.Values.statefulSetUpdate.updateStrategy }}
   podManagementPolicy: "Parallel"
@@ -35,6 +36,7 @@ spec:
         {{- include "provider.selectorLabels" $ | nindent 8 }}
         app.lavanet.io/chain: {{ $chain.name | lower }}
     spec:
+      terminationGracePeriodSeconds: {{ $.Values.terminationGracePeriodSeconds }}
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -107,6 +109,15 @@ spec:
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
+          {{- if $.Values.preStop.enabled }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - "sleep {{ $.Values.preStop.sleepSeconds }}"
+          {{- end }}
           args:
             - "rpcprovider"
             {{- if $chain.existingConfigSecret }}
@@ -164,8 +175,8 @@ spec:
           {{- if $.Values.startupProbe.enabled }}
           startupProbe:
             httpGet:
-              path: /lava/health
-              port: grpc
+              path: {{ $.Values.startupProbe.path }}
+              port: {{ $.Values.startupProbe.port }}
               scheme: {{ $.Values.startupProbe.scheme }}
             initialDelaySeconds: {{ $.Values.startupProbe.initialDelaySeconds }}
             periodSeconds: {{ $.Values.startupProbe.periodSeconds }}
@@ -175,8 +186,8 @@ spec:
           {{- end }}
           livenessProbe:
             httpGet:
-              path: /lava/health
-              port: grpc
+              path: {{ $.Values.livenessProbe.path }}
+              port: {{ $.Values.livenessProbe.port }}
               scheme: {{ $.Values.livenessProbe.scheme }}
             initialDelaySeconds: {{ $.Values.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ $.Values.livenessProbe.periodSeconds }}
@@ -185,9 +196,9 @@ spec:
             failureThreshold: {{ $.Values.livenessProbe.failureThreshold }}
           readinessProbe:
             httpGet:
-              path: /lava/health
-              port: grpc
-              scheme: {{ $.Values.livenessProbe.scheme }}
+              path: {{ $.Values.readinessProbe.path }}
+              port: {{ $.Values.readinessProbe.port }}
+              scheme: {{ $.Values.readinessProbe.scheme }}
             initialDelaySeconds: {{ $.Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ $.Values.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ $.Values.readinessProbe.timeoutSeconds }}
@@ -234,9 +245,31 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
-      {{- with $.Values.affinity }}
+      {{- if $.Values.podAntiAffinity.enabled }}
       affinity:
-        {{- toYaml . | nindent 8 }}
+        podAntiAffinity:
+          {{- if $.Values.podAntiAffinity.required }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "provider.selectorLabels" $ | nindent 18 }}
+                  app.lavanet.io/chain: {{ $chain.name | lower }}
+              topologyKey: {{ $.Values.podAntiAffinity.topologyKey | quote }}
+          {{- else }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: {{ $.Values.podAntiAffinity.weight }}
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "provider.selectorLabels" $ | nindent 20 }}
+                    app.lavanet.io/chain: {{ $chain.name | lower }}
+                topologyKey: {{ $.Values.podAntiAffinity.topologyKey | quote }}
+          {{- end }}
+      {{- else }}
+        {{- with $.Values.affinity }}
+      affinity:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
 
       {{- with $.Values.tolerations }}

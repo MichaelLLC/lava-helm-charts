@@ -26,6 +26,29 @@ namespaceOverride: ""
 ## -- Update strategy for StatefulSets
 statefulSetUpdate:
   updateStrategy: RollingUpdate
+  # -- Minimum time a new pod must remain ready before the next pod is updated
+  minReadySeconds: 0
+
+# -- Time Kubernetes allows for preStop and graceful provider termination
+terminationGracePeriodSeconds: 30
+
+# -- Delay SIGTERM while EndpointSlice and upstream service discovery remove the pod
+preStop:
+  enabled: false
+  sleepSeconds: 15
+
+# -- Spread replicas of the same chain across Kubernetes topology domains
+podAntiAffinity:
+  enabled: false
+  required: true
+  topologyKey: kubernetes.io/hostname
+  weight: 100
+
+# -- Protect provider availability during voluntary disruptions such as node drains
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  maxUnavailable: null
 
 ## -- Update strategy for Deployments
 deploymentUpdate:
@@ -185,6 +208,10 @@ certificate:
 startupProbe:
   # -- Should enable startup probe for slow provider startup
   enabled: true
+  # -- HTTP path used by the startup probe
+  path: /lava/health
+  # -- Named or numeric container port used by the startup probe
+  port: grpc
   # -- Schema of the [probe], can be HTTP or HTTPS
   scheme: HTTPS
   # -- Minimum consecutive failures for the [probe] to be considered failed
@@ -199,6 +226,10 @@ startupProbe:
   timeoutSeconds: 1
 
 readinessProbe:
+  # -- HTTP path used by the readiness probe
+  path: /lava/health
+  # -- Named or numeric container port used by the readiness probe
+  port: grpc
   # -- Schema of the [probe], can be HTTP or HTTPS
   scheme: HTTPS
   # -- Minimum consecutive failures for the [probe] to be considered failed after having succeeded
@@ -213,6 +244,10 @@ readinessProbe:
   timeoutSeconds: 1
 
 livenessProbe:
+  # -- HTTP path used by the liveness probe
+  path: /lava/health
+  # -- Named or numeric container port used by the liveness probe
+  port: grpc
   # -- Schema of the [probe], can be HTTP or HTTPS
   scheme: HTTPS
   # -- Minimum consecutive failures for the [probe] to be considered failed after having succeeded
